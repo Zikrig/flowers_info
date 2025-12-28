@@ -16,7 +16,10 @@ async def cmd_start(message: Message, state: FSMContext):
     user_id = str(message.from_user.id)
     
     if user_id in users:
-        await message.answer("Вы уже зарегистрированы! Отправьте любое сообщение, чтобы начать отчет.")
+        await message.answer(
+            "Вы уже зарегистрированы! Отправьте любое сообщение или нажмите кнопку ниже, чтобы начать отчет.",
+            reply_markup=get_main_keyboard()
+        )
         return
 
     await state.set_state(Registration.waiting_for_phone)

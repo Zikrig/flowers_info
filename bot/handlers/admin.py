@@ -74,3 +74,4 @@ async def toggle_admin_deletion(callback: CallbackQuery):
     await write_json(SETTINGS_FILE, settings)
     await manage_deletion(callback)
 
+
