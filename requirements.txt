@@ -2,5 +2,5 @@ aiogram>=3.0.0
 python-dotenv
 aiofiles
 pydantic
-
-
+fastapi
+uvicorn[standard]
