@@ -41,15 +41,19 @@ async def start_report(message: Message, state: FSMContext):
         return
 
     await state.set_state(ReportState.waiting_for_branch)
-    await message.answer(
+    await state.update_data(start_message_id=message.message_id)
+    branch_msg = await message.answer(
         "Выберите филиал, на котором вы находитесь:",
         reply_markup=get_branches_keyboard(branches)
     )
+    await state.update_data(branch_selection_message_id=branch_msg.message_id)
 
 @router.message(F.chat.type == "private", ReportState.waiting_for_kassa)
 async def process_kassa(message: Message, state: FSMContext):
     data = await state.get_data()
     branch = data.get("branch")
+    branch_selection_message_id = data.get("branch_selection_message_id")
+    start_message_id = data.get("start_message_id")
     
     users = await read_json(USERS_FILE, {})
     user_info = users.get(str(message.from_user.id), {})
@@ -85,6 +89,20 @@ async def process_kassa(message: Message, state: FSMContext):
             text=caption
         )
 
+    # Delete messages from private chat
+    for msg_id in [start_message_id, branch_selection_message_id, message.message_id]:
+        if msg_id:
+            try:
+                await message.bot.delete_message(chat_id=message.chat.id, message_id=msg_id)
+            except Exception:
+                pass
+
     await state.clear()
-    await message.answer("Отчет успешно отправлен! Спасибо.")
+    
+    # Send confirmation and delete it immediately
+    confirmation = await message.answer("Ваш отчет получен, спасибо!", reply_markup=get_main_keyboard())
+    try:
+        await message.bot.delete_message(chat_id=message.chat.id, message_id=confirmation.message_id)
+    except Exception:
+        pass
 

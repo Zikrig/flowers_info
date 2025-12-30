@@ -3,12 +3,11 @@ from aiogram.types import Message, CallbackQuery
 from aiogram.filters import Command
 from aiogram.fsm.context import FSMContext
 
-from bot.config import ADMIN_IDS, BRANCHES_FILE, SETTINGS_FILE
+from bot.config import ADMIN_IDS, BRANCHES_FILE
 from bot.states.states import AdminState
 from bot.keyboards.keyboards import (
     get_admin_keyboard, 
-    get_branches_edit_keyboard, 
-    get_deletion_settings_keyboard
+    get_branches_edit_keyboard
 )
 from bot.utils.storage import read_json, write_json
 
@@ -58,20 +57,5 @@ async def delete_branch(callback: CallbackQuery):
         await write_json(BRANCHES_FILE, branches)
     
     await manage_branches(callback)
-
-@router.callback_query(F.data == "manage_deletion", F.from_user.id.in_(ADMIN_IDS))
-async def manage_deletion(callback: CallbackQuery):
-    settings = await read_json(SETTINGS_FILE, {"auto_delete_admins": False})
-    await callback.message.edit_text(
-        "Настройки автоудаления сообщений:",
-        reply_markup=get_deletion_settings_keyboard(settings.get("auto_delete_admins", False))
-    )
-
-@router.callback_query(F.data == "toggle_admin_deletion", F.from_user.id.in_(ADMIN_IDS))
-async def toggle_admin_deletion(callback: CallbackQuery):
-    settings = await read_json(SETTINGS_FILE, {"auto_delete_admins": False})
-    settings["auto_delete_admins"] = not settings.get("auto_delete_admins", False)
-    await write_json(SETTINGS_FILE, settings)
-    await manage_deletion(callback)
 
 
