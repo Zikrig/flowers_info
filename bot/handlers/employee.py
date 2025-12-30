@@ -15,7 +15,7 @@ router = Router()
 async def process_branch_callback(callback: CallbackQuery, state: FSMContext):
     branch = callback.data.split(":", 1)[1]
     
-    await state.update_data(branch=branch)
+    await state.update_data(branch=branch, prompt_message_id=callback.message.message_id)
     await state.set_state(ReportState.waiting_for_kassa)
     
     # Edit the message to show selection and ask for kassa
@@ -42,17 +42,16 @@ async def start_report(message: Message, state: FSMContext):
 
     await state.set_state(ReportState.waiting_for_branch)
     await state.update_data(start_message_id=message.message_id)
-    branch_msg = await message.answer(
+    await message.answer(
         "Выберите филиал, на котором вы находитесь:",
         reply_markup=get_branches_keyboard(branches)
     )
-    await state.update_data(branch_selection_message_id=branch_msg.message_id)
 
 @router.message(F.chat.type == "private", ReportState.waiting_for_kassa)
 async def process_kassa(message: Message, state: FSMContext):
     data = await state.get_data()
     branch = data.get("branch")
-    branch_selection_message_id = data.get("branch_selection_message_id")
+    prompt_message_id = data.get("prompt_message_id")
     start_message_id = data.get("start_message_id")
     
     users = await read_json(USERS_FILE, {})
@@ -90,7 +89,7 @@ async def process_kassa(message: Message, state: FSMContext):
         )
 
     # Delete messages from private chat
-    for msg_id in [start_message_id, branch_selection_message_id, message.message_id]:
+    for msg_id in [start_message_id, prompt_message_id, message.message_id]:
         if msg_id:
             try:
                 await message.bot.delete_message(chat_id=message.chat.id, message_id=msg_id)
@@ -98,11 +97,5 @@ async def process_kassa(message: Message, state: FSMContext):
                 pass
 
     await state.clear()
-    
-    # Send confirmation and delete it immediately
-    confirmation = await message.answer("Ваш отчет получен, спасибо!", reply_markup=get_main_keyboard())
-    try:
-        await message.bot.delete_message(chat_id=message.chat.id, message_id=confirmation.message_id)
-    except Exception:
-        pass
+    await message.answer("Ваш отчет получен, спасибо!", reply_markup=get_main_keyboard())
 
