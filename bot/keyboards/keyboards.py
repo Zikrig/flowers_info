@@ -27,6 +27,7 @@ def get_admin_keyboard():
     return InlineKeyboardMarkup(
         inline_keyboard=[
             [InlineKeyboardButton(text="Управление филиалами", callback_data="manage_branches")],
+            [InlineKeyboardButton(text="Настроить прием отчетов", callback_data="set_report_destination")],
         ]
     )
 

@@ -3,7 +3,7 @@ from aiogram.types import Message, CallbackQuery
 from aiogram.filters import Command
 from aiogram.fsm.context import FSMContext
 
-from bot.config import ADMIN_IDS, BRANCHES_FILE
+from bot.config import ADMIN_IDS, BRANCHES_FILE, SETTINGS_FILE
 from bot.states.states import AdminState
 from bot.keyboards.keyboards import (
     get_admin_keyboard, 
@@ -58,4 +58,37 @@ async def delete_branch(callback: CallbackQuery):
     
     await manage_branches(callback)
 
+@router.callback_query(F.data == "set_report_destination", F.from_user.id.in_(ADMIN_IDS))
+async def set_report_destination(callback: CallbackQuery, state: FSMContext):
+    await state.set_state(AdminState.waiting_for_destination)
+    await callback.message.edit_text(
+        "Перешлите сюда любое сообщение из нужной темы (форум-топика) группы, "
+        "куда бот должен отправлять отчеты."
+    )
+
+@router.message(AdminState.waiting_for_destination, F.from_user.id.in_(ADMIN_IDS))
+async def save_report_destination(message: Message, state: FSMContext):
+    if not message.forward_from_chat:
+        await message.answer("Сообщение должно быть переслано из нужной темы группы.")
+        return
+
+    chat_id = message.forward_from_chat.id
+    topic_id = message.message_thread_id
+
+    if topic_id is None:
+        await message.answer(
+            "Не удалось определить тему. Убедитесь, что пересылаете сообщение именно из форум-топика."
+        )
+        return
+
+    settings = await read_json(SETTINGS_FILE, {})
+    settings["group_id"] = chat_id
+    settings["topic_id"] = topic_id
+    await write_json(SETTINGS_FILE, settings)
+
+    await state.clear()
+    await message.answer(
+        f"Группа и тема сохранены.\nGROUP_ID: {chat_id}\nTOPIC_ID: {topic_id}",
+        reply_markup=get_admin_keyboard()
+    )
 

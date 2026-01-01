@@ -4,7 +4,7 @@ from aiogram.types import Message, CallbackQuery
 from aiogram.fsm.context import FSMContext
 from aiogram.filters import StateFilter
 
-from bot.config import USERS_FILE, BRANCHES_FILE, GROUP_ID, TOPIC_ID
+from bot.config import USERS_FILE, BRANCHES_FILE, SETTINGS_FILE
 from bot.states.states import ReportState
 from bot.keyboards.keyboards import get_branches_keyboard, get_main_keyboard
 from bot.utils.storage import read_json
@@ -54,6 +54,15 @@ async def process_kassa(message: Message, state: FSMContext):
     prompt_message_id = data.get("prompt_message_id")
     start_message_id = data.get("start_message_id")
     
+    settings = await read_json(SETTINGS_FILE, {})
+    group_id = settings.get("group_id")
+    topic_id = settings.get("topic_id")
+
+    if not group_id or topic_id is None:
+        await message.answer("Адрес для отправки отчетов не настроен. Обратитесь к администратору.")
+        await state.clear()
+        return
+
     users = await read_json(USERS_FILE, {})
     user_info = users.get(str(message.from_user.id), {})
     
@@ -75,16 +84,16 @@ async def process_kassa(message: Message, state: FSMContext):
         text = message.caption if message.caption else ""
         caption += text
         await message.bot.send_photo(
-            chat_id=GROUP_ID,
-            message_thread_id=TOPIC_ID,
+            chat_id=group_id,
+            message_thread_id=topic_id,
             photo=photo,
             caption=caption
         )
     else:
         caption += message.text if message.text else ""
         await message.bot.send_message(
-            chat_id=GROUP_ID,
-            message_thread_id=TOPIC_ID,
+            chat_id=group_id,
+            message_thread_id=topic_id,
             text=caption
         )
 

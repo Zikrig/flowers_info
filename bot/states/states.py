@@ -9,4 +9,5 @@ class ReportState(StatesGroup):
 
 class AdminState(StatesGroup):
     waiting_for_branch_name = State()
+    waiting_for_destination = State()
 
