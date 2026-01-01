@@ -1,5 +1,6 @@
 import re
 from aiogram import Router, F
+from aiogram import Bot
 from aiogram.types import Message, CallbackQuery
 from aiogram.filters import Command
 from aiogram.fsm.context import FSMContext
@@ -71,18 +72,39 @@ async def set_report_destination(callback: CallbackQuery, state: FSMContext):
 
 @router.message(AdminState.waiting_for_destination, F.from_user.id.in_(ADMIN_IDS))
 async def save_report_destination(message: Message, state: FSMContext):
-    link = message.text or ""
-    match = re.search(r"https?://t\.me/c/(\d+)/(\d+)(?:/\d+)?", link)
-    if not match:
+    link = (message.text or "").strip()
+
+    # Формат закрытых групп/форумов без username: https://t.me/c/<internal_id>/<topic_id>/<message_id>
+    match_c = re.search(r"https?://t\.me/c/(\d+)/(\d+)(?:/\d+)?", link)
+    # Формат публичных групп с username: https://t.me/<username>/<topic_id>/<message_id>
+    match_public = re.search(r"https?://t\.me/([A-Za-z0-9_]+)/(\d+)(?:/\d+)?", link)
+
+    chat_id = None
+    topic_id = None
+
+    if match_c:
+        raw_chat_id = int(match_c.group(1))
+        topic_id = int(match_c.group(2))
+        chat_id = -100 * raw_chat_id
+    elif match_public:
+        username = match_public.group(1)
+        topic_id = int(match_public.group(2))
+        try:
+            chat = await message.bot.get_chat(username)
+            chat_id = chat.id
+        except Exception:
+            await message.answer(
+                "Не удалось определить чат по username. Проверьте ссылку и попробуйте снова."
+            )
+            return
+
+    if chat_id is None or topic_id is None:
         await message.answer(
-            "Не удалось распознать ссылку. Пришлите ссылку вида "
-            "https://t.me/c/<chat_id>/<topic_id>/<message_id>"
+            "Не удалось распознать ссылку. Пришлите ссылку вида:\n"
+            "• https://t.me/c/<chat_id>/<topic_id>/<message_id> (для закрытых групп)\n"
+            "• https://t.me/<username>/<topic_id>/<message_id> (для публичных групп)"
         )
         return
-
-    raw_chat_id = int(match.group(1))
-    topic_id = int(match.group(2))
-    chat_id = -100 * raw_chat_id
 
     settings = await read_json(SETTINGS_FILE, {})
     settings["group_id"] = chat_id
