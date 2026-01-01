@@ -1,0 +1,14 @@
+[Unit]
+Description=Flowers bot
+After=network.target
+
+[Service]
+Type=simple
+WorkingDirectory=/root/flowers_info
+EnvironmentFile=/root/flowers_info/.env
+ExecStart=/root/flowers_info/venv/bin/python /root/flowers_info/main.py
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

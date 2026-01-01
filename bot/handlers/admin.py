@@ -1,3 +1,4 @@
+import re
 from aiogram import Router, F
 from aiogram.types import Message, CallbackQuery
 from aiogram.filters import Command
@@ -62,24 +63,26 @@ async def delete_branch(callback: CallbackQuery):
 async def set_report_destination(callback: CallbackQuery, state: FSMContext):
     await state.set_state(AdminState.waiting_for_destination)
     await callback.message.edit_text(
-        "Перешлите сюда любое сообщение из нужной темы (форум-топика) группы, "
-        "куда бот должен отправлять отчеты."
+        "Пришлите ссылку на сообщение из нужной темы (форум-топика) группы, "
+        "куда бот должен отправлять отчеты.\n\n"
+        "Формат: https://t.me/c/<chat_id>/<topic_id>/<message_id> "
+        "или https://t.me/c/<chat_id>/<topic_id>"
     )
 
 @router.message(AdminState.waiting_for_destination, F.from_user.id.in_(ADMIN_IDS))
 async def save_report_destination(message: Message, state: FSMContext):
-    if not message.forward_from_chat:
-        await message.answer("Сообщение должно быть переслано из нужной темы группы.")
-        return
-
-    chat_id = message.forward_from_chat.id
-    topic_id = message.message_thread_id
-
-    if topic_id is None:
+    link = message.text or ""
+    match = re.search(r"https?://t\.me/c/(\d+)/(\d+)(?:/\d+)?", link)
+    if not match:
         await message.answer(
-            "Не удалось определить тему. Убедитесь, что пересылаете сообщение именно из форум-топика."
+            "Не удалось распознать ссылку. Пришлите ссылку вида "
+            "https://t.me/c/<chat_id>/<topic_id>/<message_id>"
         )
         return
+
+    raw_chat_id = int(match.group(1))
+    topic_id = int(match.group(2))
+    chat_id = -100 * raw_chat_id
 
     settings = await read_json(SETTINGS_FILE, {})
     settings["group_id"] = chat_id
